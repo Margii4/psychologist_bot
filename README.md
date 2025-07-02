@@ -1,5 +1,9 @@
  Psychologist Telegram Bot 🤖🧠
 
+You can test the deployed bot here: [t.me/margii4_bot]
+
+Try the bot directly in Telegram: [@margii4_bot](t.me/margii4_bot)
+
 An AI-powered Telegram bot that provides psychological support and friendly conversation in English, Italian, and Russian. The bot uses OpenAI GPT-3.5 for natural language processing, stores conversation context in Pinecone (vector database), and offers a multilingual, menu-driven user experience.
 
    Features
