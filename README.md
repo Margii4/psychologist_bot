@@ -3,7 +3,7 @@
 The bot is available while my script is running. If you cannot get a response, please contact me to schedule a demo.
 
 e-mail:margaritaviviers@gmail.com
-Telegramm:@margii4
+Telegram: [@margii4](https://t.me/margii4)
 
 Try the bot directly in Telegram: [@margii4_bot](https://t.me/margii4_bot)
 
