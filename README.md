@@ -27,6 +27,13 @@ An AI-powered Telegram bot that provides psychological support and friendly conv
 - python-dotenv
 - Logging
 
+    📸 Screenshots
+
+| Welcome / Language | Empathetic Reply | Clear Memory |
+|---|---|---|
+| ![welcome](welcome.png) | ![reply](reply.png) | ![clear](clear_memory.png) |
+
+
  Getting Started
 
   1. Clone the repository
