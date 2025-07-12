@@ -8,8 +8,8 @@ __pycache__/
 *.log
 
 #  Virtual Environment
-venv/
-.env/
+venv
+.env
 
 #  Package metadata
 *.egg-info/
