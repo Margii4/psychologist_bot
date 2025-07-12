@@ -1,29 +1,28 @@
-#  Python
+# Python
 __pycache__/
 *.py[cod]
-*.pyc
-*.pyo
-*.pyd
-*.sqlite3
-*.log
-
-#  Virtual Environment
-venv
-.env
-
-#  Package metadata
-*.egg-info/
 *.egg
-*.eggs/
-build/
+*.egg-info/
 dist/
+build/
 
-#  OS / IDE
-.DS_Store
-*.swp
-*.bak
-*.tmp
-*.orig
-*.~ 
-.idea/
+# Virtual environment
+venv/
+
+# Environment variables
+.env
+.env.*
+
+# VS Code
 .vscode/
+
+# Logs
+*.log
+logs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# System files
+.DS_Store
+Thumbs.db
