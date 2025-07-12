@@ -13,15 +13,14 @@ from telegram.ext import (
 )
 import openai
 
-# ========== LOAD ENV ==========
+# ========== ENV ==========
 load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-ADMIN_USER_ID = int(os.getenv("ADMIN_USER_ID", "123456789"))  # Use your Telegram ID
-
-if not TELEGRAM_TOKEN or not OPENAI_API_KEY or not PINECONE_API_KEY:
-    raise Exception("One or more API keys are missing in your .env!")
+PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME")
+PINECONE_CLOUD = os.getenv("PINECONE_CLOUD", "aws")
+PINECONE_REGION = os.getenv("PINECONE_REGION", "us-east-1")
 
 openai.api_key = OPENAI_API_KEY
 
@@ -34,25 +33,24 @@ logger = logging.getLogger("psychologist_bot")
 
 # ========== PINECONE ==========
 from pinecone import Pinecone, ServerlessSpec
-pc = Pinecone(api_key=PINECONE_API_KEY)
-INDEX_NAME = "psychologist-bot"
+
 DIMENSION = 1536
-if INDEX_NAME not in [i.name for i in pc.list_indexes()]:
+pc = Pinecone(api_key=PINECONE_API_KEY)
+if PINECONE_INDEX_NAME not in [i.name for i in pc.list_indexes()]:
     pc.create_index(
-        name=INDEX_NAME,
+        name=PINECONE_INDEX_NAME,
         dimension=DIMENSION,
         metric="cosine",
-        spec=ServerlessSpec(cloud="aws", region="us-east-1")
+        spec=ServerlessSpec(cloud=PINECONE_CLOUD, region=PINECONE_REGION)
     )
-    logger.info(f"Created Pinecone index '{INDEX_NAME}' with dimension {DIMENSION}")
-index = pc.Index(INDEX_NAME)
+index = pc.Index(PINECONE_INDEX_NAME)
 
 # ========== LANGUAGES ==========
 LANGUAGES = {
     "en": {
-        "greet": "👋 Hello! I'm your Psychologist Helper. Write your message and I'll try to help.",
-        "help": "I am here to support you. Just share your worries, and I will listen and help you reflect.",
-        "abilities": "I can listen, support, analyze your feelings, clear memory, and switch language.",
+        "greet": "👋 Hello! I'm your caring support assistant. Write me any concern — I'm here to help you emotionally.",
+        "help": "You can share your feelings, thoughts, or worries. I will listen and offer gentle, supportive reflections. I never diagnose or give medical advice.",
+        "abilities": "I offer emotional support, active listening, help with reflection and self-care tips. You can clear your memory or change language anytime.",
         "recent": "Your recent messages:\n— ",
         "recent_none": "You don't have recent messages yet.",
         "cleared": "Your chat memory has been cleared.",
@@ -61,7 +59,6 @@ LANGUAGES = {
         "lang_en": "English 🇬🇧",
         "lang_it": "Italiano 🇮🇹",
         "lang_ru": "Русский 🇷🇺",
-        "prompt": "You are a friendly AI psychologist assistant. Be supportive, warm, avoid medical advice.",
         "menu": [
             [InlineKeyboardButton("❓ Help", callback_data='help')],
             [InlineKeyboardButton("💡 What can you do?", callback_data='abilities')],
@@ -69,41 +66,33 @@ LANGUAGES = {
             [InlineKeyboardButton("🗑️ Clear my memory", callback_data='clear')],
             [InlineKeyboardButton("🌐 Language", callback_data='language')],
         ],
-    },
-    "it": {
-        "greet": "👋 Ciao! Sono il tuo assistente psicologo. Scrivimi il tuo messaggio e proverò ad aiutarti.",
-        "help": "Sono qui per supportarti. Raccontami cosa ti preoccupa, ti ascolto.",
-        "abilities": "Posso ascoltare, supportare, analizzare i tuoi sentimenti, cancellare la memoria, cambiare lingua.",
-        "recent": "I tuoi messaggi recenti:\n— ",
-        "recent_none": "Non hai ancora messaggi recenti.",
-        "cleared": "La tua memoria è stata cancellata.",
-        "nothing_clear": "Non hai memoria salvata da cancellare.",
-        "choose_language": "🌐 Scegli la tua lingua:",
-        "lang_en": "English 🇬🇧",
-        "lang_it": "Italiano 🇮🇹",
-        "lang_ru": "Русский 🇷🇺",
-        "prompt": "Sei un assistente psicologo AI gentile. Sii di supporto, positivo, evita consigli medici.",
-        "menu": [
-            [InlineKeyboardButton("❓ Aiuto", callback_data='help')],
-            [InlineKeyboardButton("💡 Cosa puoi fare?", callback_data='abilities')],
-            [InlineKeyboardButton("🕓 I miei messaggi recenti", callback_data='recent')],
-            [InlineKeyboardButton("🗑️ Cancella la memoria", callback_data='clear')],
-            [InlineKeyboardButton("🌐 Lingua", callback_data='language')],
-        ],
+        "system_prompt":
+            (
+                "You are a warm, empathetic, and respectful virtual assistant designed to provide emotional support only. "
+"You always communicate with kindness, understanding, and care. "
+"You never offer any medical, psychological, or psychiatric diagnoses or suggest treatments of any kind. "
+"You never give medical advice and do not interpret symptoms. "
+"If the user asks for a diagnosis, medical interpretation, or therapy, respond gently by explaining "
+"that your role is to offer emotional support only, and that they should reach out to a qualified healthcare professional for medical concerns. "
+"Your goal is to make the user feel heard, understood, respected, and safe. "
+"Focus on active listening, warmth, and emotional validation. "
+"If the user shares something positive, celebrate it with them and encourage their progress. "
+"Always respond with a compassionate, non-judgmental human tone."
+
+            )
     },
     "ru": {
-        "greet": "👋 Привет! Я — твой помощник-психолог. Напиши сообщение, я помогу.",
-        "help": "Я здесь, чтобы поддержать тебя. Просто напиши, что тебя тревожит, я выслушаю.",
-        "abilities": "Я умею слушать, поддерживать, анализировать чувства, очищать память, менять язык.",
+        "greet": "👋 Привет! Я — твой заботливый ассистент поддержки. Напиши мне любую тревогу — я здесь, чтобы поддержать тебя эмоционально.",
+        "help": "Ты можешь поделиться чувствами, мыслями или переживаниями. Я выслушаю и дам мягкий, поддерживающий отклик. Я никогда не ставлю диагнозов и не даю медицинских советов.",
+        "abilities": "Я предлагаю эмоциональную поддержку, активное слушание, помощь в рефлексии и советы по заботе о себе. Ты можешь очистить память или сменить язык в любой момент.",
         "recent": "Твои последние сообщения:\n— ",
         "recent_none": "У тебя пока нет недавних сообщений.",
         "cleared": "Память чата очищена.",
-        "nothing_clear": "Память пуста, нечего очищать.",
+        "nothing_clear": "У тебя нет сохранённой памяти для очистки.",
         "choose_language": "🌐 Выбери язык:",
         "lang_en": "English 🇬🇧",
         "lang_it": "Italiano 🇮🇹",
         "lang_ru": "Русский 🇷🇺",
-        "prompt": "Ты дружелюбный психолог-ассистент. Будь поддержкой, не давай медицинских советов.",
         "menu": [
             [InlineKeyboardButton("❓ Помощь", callback_data='help')],
             [InlineKeyboardButton("💡 Что ты умеешь?", callback_data='abilities')],
@@ -111,6 +100,53 @@ LANGUAGES = {
             [InlineKeyboardButton("🗑️ Очистить память", callback_data='clear')],
             [InlineKeyboardButton("🌐 Язык", callback_data='language')],
         ],
+        "system_prompt":
+            (
+               "Ты — тёплый, эмпатичный и уважительный виртуальный ассистент, созданный исключительно для оказания эмоциональной поддержки. "
+"Ты всегда общаешься с добротой, пониманием и заботой. "
+"Ты никогда не ставишь медицинских, психологических или психиатрических диагнозов и не предлагаешь никаких методов лечения. "
+"Ты не даёшь медицинских советов и не интерпретируешь симптомы. "
+"Если пользователь просит диагноз, медицинскую интерпретацию или терапию, мягко объясни, "
+"что твоя задача — оказывать только эмоциональную поддержку, и что важно обратиться к квалифицированному специалисту. "
+"Твоя цель — чтобы пользователь чувствовал себя услышанным, понятым, уважаемым и в безопасности. "
+"Сосредоточься на активном слушании, теплоте и принятии эмоций. "
+"Если пользователь делится чем-то хорошим, порадоваться вместе с ним и поддержать его прогресс. "
+"Всегда отвечай в тёплом, человечном и безоценочном тоне."
+
+            )
+    },
+    "it": {
+        "greet": "👋 Ciao! Sono il tuo assistente di supporto emotivo. Scrivimi qualsiasi preoccupazione — sono qui per aiutarti.",
+        "help": "Puoi condividere i tuoi sentimenti, pensieri o preoccupazioni. Ti ascolterò e offrirò riflessioni di supporto, senza mai fare diagnosi o dare consigli medici.",
+        "abilities": "Offro supporto emotivo, ascolto attivo, aiuto nella riflessione e consigli di self-care. Puoi cancellare la memoria o cambiare lingua in qualsiasi momento.",
+        "recent": "I tuoi messaggi recenti:\n— ",
+        "recent_none": "Non hai ancora messaggi recenti.",
+        "cleared": "La tua memoria della chat è stata cancellata.",
+        "nothing_clear": "Non hai memoria salvata da cancellare.",
+        "choose_language": "🌐 Scegli la tua lingua:",
+        "lang_en": "English 🇬🇧",
+        "lang_it": "Italiano 🇮🇹",
+        "lang_ru": "Русский 🇷🇺",
+        "menu": [
+            [InlineKeyboardButton("❓ Aiuto", callback_data='help')],
+            [InlineKeyboardButton("💡 Cosa puoi fare?", callback_data='abilities')],
+            [InlineKeyboardButton("🕓 Le mie domande recenti", callback_data='recent')],
+            [InlineKeyboardButton("🗑️ Cancella la memoria", callback_data='clear')],
+            [InlineKeyboardButton("🌐 Lingua", callback_data='language')],
+        ],
+        "system_prompt":
+            (
+                "Sei un assistente virtuale empatico, premuroso e rispettoso, progettato per offrire esclusivamente supporto emotivo. "
+        "Comunichi sempre con gentilezza, comprensione ed empatia. "
+        "Non fornisci mai diagnosi mediche, psicologiche o psichiatriche e non suggerisci trattamenti di alcun tipo. "
+        "Non offri mai consigli medici e non interpreti sintomi. "
+        "Se l’utente chiede una diagnosi, un'interpretazione medica o una terapia, rispondi con delicatezza spiegando "
+        "che il tuo ruolo è solo quello di fornire supporto emotivo e che per questioni mediche è importante rivolgersi a uno specialista qualificato. "
+        "Il tuo obiettivo è far sentire l’utente ascoltato, compreso, rispettato e al sicuro. "
+        "Concentrati sull’ascolto attivo, sull’accoglienza calorosa e sulla validazione delle emozioni. "
+        "Se l’utente condivide qualcosa di positivo, celebra insieme a lui e incoraggialo. "
+        "Rispondi sempre con tono umano, accogliente e privo di giudizio."
+            )
     }
 }
 DEFAULT_LANG = "en"
@@ -131,8 +167,7 @@ def lang_choice_keyboard():
         [InlineKeyboardButton(LANGUAGES['it']["lang_it"], callback_data='setlang_it')],
         [InlineKeyboardButton(LANGUAGES['ru']["lang_ru"], callback_data='setlang_ru')]
     ])
-
-# ========== OPENAI/PINECONE UTILS ==========
+# ========== VECTOR MEMORY ==========
 def get_embedding(text):
     try:
         response = openai.embeddings.create(
@@ -141,7 +176,6 @@ def get_embedding(text):
         )
         return response.data[0].embedding
     except Exception as e:
-        print(f"\n\n===== OpenAI embedding error! =====\n{repr(e)}\n\n")
         logger.error(f"Embedding error: {e}", exc_info=True)
         return [0.0] * DIMENSION
 
@@ -157,39 +191,9 @@ def save_message(user_id, message, role):
     try:
         index.upsert(vectors=[(vector_id, emb, meta)])
     except Exception as e:
-        print(f"\n\n===== Pinecone upsert error! =====\n{repr(e)}\n\n")
         logger.error(f"Pinecone upsert error: {e}")
 
-def get_recent_msgs(user_id, n=3):
-    try:
-        results = index.query(
-            vector=[0.0]*DIMENSION,
-            filter={"user_id": user_id, "role": "user"},
-            top_k=n,
-            include_metadata=True
-        )
-        return [m['metadata']['text'] for m in results.get('matches', [])]
-    except Exception as e:
-        logger.error(f"Pinecone query error: {e}")
-        return []
-
-def clear_memory(user_id):
-    try:
-        results = index.query(
-            vector=[0.0]*DIMENSION,
-            filter={"user_id": user_id},
-            top_k=1000,
-            include_metadata=False
-        )
-        ids_to_delete = [m['id'] for m in results.get('matches', [])]
-        if ids_to_delete:
-            index.delete(ids=ids_to_delete)
-            return True
-    except Exception as e:
-        logger.error(f"Pinecone clear error: {e}")
-    return False
-
-def get_relevant_history(user_id, query, top_k=5):
+def get_relevant_history(user_id, query, top_k=8):
     query_emb = get_embedding(query)
     try:
         res = index.query(
@@ -198,26 +202,38 @@ def get_relevant_history(user_id, query, top_k=5):
             top_k=top_k,
             include_metadata=True
         )
-        results = []
+        history = []
         for match in res.get("matches", []):
             meta = match.get("metadata", {})
-            if meta.get("role") == "user":
-                results.append(meta.get("text", ""))
-        return results
+            role = meta.get("role")
+            text = meta.get("text")
+            if role in ("user", "assistant") and text:
+                history.append({"role": role, "content": text})
+        return history
     except Exception as e:
-        logger.error(f"Pinecone query error: {e}")
+        logger.error(f"Pinecone history query error: {e}")
         return []
 
-def is_valid_message(msg):
-    return isinstance(msg, str) and 1 < len(msg) < 1500
+def clear_memory(user_id):
+    try:
+        res = index.query(
+            vector=[0.0]*DIMENSION,
+            filter={"user_id": user_id},
+            top_k=1000,
+            include_metadata=False
+        )
+        ids = [m["id"] for m in res.get("matches", [])]
+        if ids:
+            index.delete(ids=ids)
+            return True
+    except Exception as e:
+        logger.error(f"Pinecone clear error: {e}")
+    return False
 
-# ========== HANDLERS ==========
+# ========== ASYNC HANDLERS ==========
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_lang(context)
-    await update.message.reply_text(
-        LANGUAGES[lang]["greet"],
-        reply_markup=menu_keyboard(context)
-    )
+    await update.message.reply_text(LANGUAGES[lang]["greet"], reply_markup=menu_keyboard(context))
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -228,96 +244,76 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if query.data == 'help':
             await query.message.reply_text(LANGUAGES[lang]["help"], reply_markup=menu_keyboard(context))
-
         elif query.data == 'abilities':
             await query.message.reply_text(LANGUAGES[lang]["abilities"], reply_markup=menu_keyboard(context))
-
         elif query.data == 'recent':
-            recent = get_recent_msgs(user_id)
-            if recent:
-                await query.message.reply_text(LANGUAGES[lang]["recent"] + "\n— ".join(recent), reply_markup=menu_keyboard(context))
+            msgs = get_relevant_history(user_id, "", top_k=3)
+            if msgs:
+                joined = "\n— ".join([m["content"] for m in msgs if m["role"] == "user"])
+                await query.message.reply_text(LANGUAGES[lang]["recent"] + joined, reply_markup=menu_keyboard(context))
             else:
                 await query.message.reply_text(LANGUAGES[lang]["recent_none"], reply_markup=menu_keyboard(context))
-
         elif query.data == 'clear':
-            cleared = clear_memory(user_id)
-            if cleared:
-                await query.message.reply_text(LANGUAGES[lang]["cleared"], reply_markup=menu_keyboard(context))
-            else:
-                await query.message.reply_text(LANGUAGES[lang]["nothing_clear"], reply_markup=menu_keyboard(context))
-
+            success = clear_memory(user_id)
+            msg = LANGUAGES[lang]["cleared"] if success else LANGUAGES[lang]["nothing_clear"]
+            await query.message.reply_text(msg, reply_markup=menu_keyboard(context))
         elif query.data == 'language':
             await query.message.reply_text(LANGUAGES[lang]["choose_language"], reply_markup=lang_choice_keyboard())
-
         elif query.data.startswith('setlang_'):
-            new_lang = query.data.split("_")[1]
+            new_lang = query.data[len('setlang_'):]
+            if new_lang not in LANGUAGES:
+                logger.error(f"No such language: {new_lang}")
+                await query.message.reply_text("Selected language is not supported.", reply_markup=menu_keyboard(context))
+                return
             set_lang(context, new_lang)
             lang = new_lang
             await query.message.reply_text(LANGUAGES[lang]["greet"], reply_markup=menu_keyboard(context))
     except Exception as e:
         logger.error(f"Button callback error: {e}")
-        await query.message.reply_text("An internal error occurred. Please try again later.", reply_markup=menu_keyboard(context))
+        await query.message.reply_text("Internal error. Please try again.", reply_markup=menu_keyboard(context))
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_lang(context)
     user_id = str(update.message.from_user.id)
     user_msg = update.message.text
 
-    if not is_valid_message(user_msg):
-        await update.message.reply_text("Your message is too long or empty. Please send something shorter.", reply_markup=menu_keyboard(context))
+    if not isinstance(user_msg, str) or len(user_msg) < 2 or len(user_msg) > 1500:
+        await update.message.reply_text("Your message is too long or too short.", reply_markup=menu_keyboard(context))
         return
 
     save_message(user_id, user_msg, "user")
-    relevant_history = get_relevant_history(user_id, user_msg, top_k=5)
-    max_history_chars = 4000
+    history = get_relevant_history(user_id, user_msg, top_k=6)
+    max_chars = 4000
+    messages = [{"role": "system", "content": LANGUAGES[lang]["system_prompt"]}]
     total_len = 0
-    filtered_history = []
-    for msg in relevant_history:
-        if not msg:
-            continue
-        if total_len + len(msg) > max_history_chars:
-            break
-        filtered_history.append(msg)
-        total_len += len(msg)
+    for h in history:
+        if total_len + len(h["content"]) < max_chars:
+            messages.append(h)
+            total_len += len(h["content"])
 
-    messages = [
-        {"role": "system", "content": LANGUAGES[lang]["prompt"]}
-    ]
-    for past_msg in filtered_history:
-        messages.append({"role": "user", "content": past_msg})
-    messages.append({"role": "user", "content": user_msg})  # <---- исправлено здесь!
+    messages.append({"role": "user", "content": user_msg})
 
     try:
-        logger.debug("Sending OpenAI request...")
         response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=messages,
             temperature=0.8,
             max_tokens=300
         )
-        logger.debug(f"OpenAI response: {response}")
-        bot_reply = response.choices[0].message.content.strip()
+        reply = response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"\n\n===== OpenAI error! =====\n{repr(e)}\n\n")
-        logger.error(f"OpenAI error: {e}", exc_info=True)
-        bot_reply = {
-            "en": "Sorry, a technical error occurred. Please try again.",
-            "it": "Mi dispiace, sto avendo difficoltà tecniche. Riprova più tardi.",
-            "ru": "Извините, возникли технические проблемы. Пожалуйста, попробуйте ещё раз."
-        }.get(lang, "Sorry, a technical error occurred. Please try again.")
+        logger.error(f"OpenAI error: {e}")
+        reply = LANGUAGES[lang].get("error", "Sorry, a technical error occurred.")
 
-    save_message(user_id, bot_reply, "assistant")
-    await update.message.reply_text(bot_reply, reply_markup=menu_keyboard(context))
+    save_message(user_id, reply, "assistant")
+    await update.message.reply_text(reply, reply_markup=menu_keyboard(context))
 
 async def error_handler(update, context):
-    logger.error(msg="Exception while handling an update:", exc_info=context.error)
-    print(f"TELEGRAM ERROR: {context.error}")
-    try:
-        if update and getattr(update, "message", None):
-            await update.message.reply_text("Sorry, a technical error occurred. Please try again.", reply_markup=menu_keyboard(context))
-    except Exception as e:
-        print(f"Failed to send error message: {e}")
+    logger.error(msg="Exception while handling update:", exc_info=context.error)
+    if update and getattr(update, "message", None):
+        await update.message.reply_text("Sorry, an error occurred.", reply_markup=menu_keyboard(context))
 
+# ========== MAIN ==========
 def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))

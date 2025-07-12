@@ -1,3 +1,29 @@
-.env
+#  Python
 __pycache__/
+*.py[cod]
 *.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.log
+
+#  Virtual Environment
+venv/
+.env/
+
+#  Package metadata
+*.egg-info/
+*.egg
+*.eggs/
+build/
+dist/
+
+#  OS / IDE
+.DS_Store
+*.swp
+*.bak
+*.tmp
+*.orig
+*.~ 
+.idea/
+.vscode/
