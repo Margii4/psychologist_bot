@@ -13,7 +13,7 @@ from telegram.ext import (
 )
 import openai
 
-# ========== ENV ==========
+# env
 load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -24,14 +24,14 @@ PINECONE_REGION = os.getenv("PINECONE_REGION", "us-east-1")
 
 openai.api_key = OPENAI_API_KEY
 
-# ========== LOGGING ==========
+# LOGGING 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger("psychologist_bot")
 
-# ========== PINECONE ==========
+# PINECONE 
 from pinecone import Pinecone, ServerlessSpec
 
 DIMENSION = 1536
@@ -45,7 +45,7 @@ if PINECONE_INDEX_NAME not in [i.name for i in pc.list_indexes()]:
     )
 index = pc.Index(PINECONE_INDEX_NAME)
 
-# ========== LANGUAGES ==========
+# LANGUAGES 
 LANGUAGES = {
     "en": {
         "greet": "👋 Hello! I'm your caring support assistant. Write me any concern — I'm here to help you emotionally.",
@@ -167,7 +167,7 @@ def lang_choice_keyboard():
         [InlineKeyboardButton(LANGUAGES['it']["lang_it"], callback_data='setlang_it')],
         [InlineKeyboardButton(LANGUAGES['ru']["lang_ru"], callback_data='setlang_ru')]
     ])
-# ========== VECTOR MEMORY ==========
+# VECTOR MEMORY 
 def get_embedding(text):
     try:
         response = openai.embeddings.create(
@@ -230,7 +230,7 @@ def clear_memory(user_id):
         logger.error(f"Pinecone clear error: {e}")
     return False
 
-# ========== ASYNC HANDLERS ==========
+# ASYNC HANDLERS 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_lang(context)
     await update.message.reply_text(LANGUAGES[lang]["greet"], reply_markup=menu_keyboard(context))
@@ -313,7 +313,7 @@ async def error_handler(update, context):
     if update and getattr(update, "message", None):
         await update.message.reply_text("Sorry, an error occurred.", reply_markup=menu_keyboard(context))
 
-# ========== MAIN ==========
+# MAIN 
 def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
